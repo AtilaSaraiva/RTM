@@ -1,4 +1,5 @@
 module difFinitas
+    use omp_lib
     !=============================================!
     ! Módulo desenvolvido para efetuar a modelagem
     ! direta da propagação de uma onda ao resolver
@@ -33,9 +34,9 @@ module difFinitas
             real               :: coefAtenuacao(Nb)                         ! Coefientes de atenuacao
             character(len=30)  :: filename                                  ! Nome do Arquivo
             real               :: prod=1.0                                  ! Aux de produto
-            integer            :: i,j,k,&                                   ! Contadores
-                                  f1,f2,lFontes,&                           ! Relacionados a posição e num de fontes
-                                  Nxb,Nzb                                   ! Dimensões com a borda
+            integer            :: i,j,k                                     ! Contadores
+            integer            :: f1,f2,lFontes                             ! Relacionados a posição e num de fontes
+            integer            :: Nxb,Nzb                                   ! Dimensões com a borda
 
             ! Criando arquivo para guardar os snaps
             filename = 'snap.ad'
@@ -64,7 +65,7 @@ module difFinitas
 
             j=1
             do k=2,Nt-1
-                write(0,*) 'it',k
+                if(mod(k,100) == 0) write(0,*) 'it',k
 
                 ! Atenuando os campos passado e presente
                 call atenuacao(nxb,nzb,nb,coefAtenuacao,P_passado)
@@ -130,6 +131,8 @@ module difFinitas
 
             lz=nzb
             lx=nxb
+            !$omp parallel
+            !$omp do
             do i =1,nb
                 do j=1,nxb
                     p2(i,j)=p2(i,j)*coef(i)
@@ -142,6 +145,8 @@ module difFinitas
                 lx=lx-1
                 lz=lz-1
             enddo
+            !$omp end do
+            !$omp end parallel
 
             return
         end subroutine atenuacao
@@ -164,6 +169,8 @@ module difFinitas
 
             ! Copiando os valores do contorno do campo de vel original
             ! na borda do campo extendido
+            !$omp parallel
+            !$omp do
             do i=-Nb+1,0
                 campoVelExt(i,1:Nx) = campoVel(1,:)
                 campoVelExt(1:Nz,i) = campoVel(:,1)
@@ -171,6 +178,8 @@ module difFinitas
                 campoVelExt(Nz+j,1:Nx) = campoVel(Nx,:)
                 campoVelExt(1:Nz,Nx+j) = campoVel(:,Nz)
             end do
+            !$omp end do nowait
+            !$omp end parallel
 
             ! Fazendo o mesmo para os valores nos 4 cantos do campo de
             ! velocidade original.
@@ -185,7 +194,7 @@ module difFinitas
             !=============================================!
             ! Subrotina para cálculo do laplaciano de um
             ! campo de pressão, com ordens de 2,4,6 e 8.
-            ! !=============================================!
+            !=============================================!
 
             ! Entrada e Saída
             integer,intent(in):: Nx,Nz,ordem,Nb
@@ -241,6 +250,9 @@ module difFinitas
             lim_nz = Nz - ordem / 2
 
             ! Calculando o laplaciano
+
+            !$omp parallel shared(coef,P,laplaciano)
+            !$omp do reduction(+:Pxx) reduction(+:Pzz) schedule(dynamic,1) private(i,j)
             do j=in_n,lim_nx
                 do i=in_n,lim_nz
                     Pxx = 0.0
@@ -256,6 +268,9 @@ module difFinitas
                     laplaciano(i,j) = Pxx / dx**2. + Pzz / (dz**2.)
                 end do
             end do
+            !$omp end do nowait
+            !$omp barrier
+            !$omp end parallel
 
             return
         end function laplaciano
@@ -272,10 +287,7 @@ program wave
     type(axa) :: at,az,ax
     ! Parâmetros do modelo
     integer:: nx,nz,nt,nb,ordem
-    real:: dt,dx,dz
-!    integer,parameter:: Nx=200,Nz=200,Nt=1500,ordem=8,Nb = 40
-!    real,parameter:: h1=1000,h2=1000
-!    real,parameter:: dx=10.0,dz=10.0,dt=0.001
+    real:: dt,dx,dz,start,finish
     ! Campo de velocidade
     real,allocatable:: campoVel(:,:)
     ! Wavelet
@@ -296,16 +308,29 @@ program wave
     Fsnaps = rsf_output("out")
 
     ! Retirando do header as informações de geometria
-    call iaxa(FcampoVel,az,1)
-    call iaxa(FcampoVel,ax,2)
+    call from_par(FcampoVel,"n1",az%n)
+    call from_par(FcampoVel,"n2",ax%n)
+    call from_par(FcampoVel,"d1",az%d)
+    call from_par(FcampoVel,"d2",ax%d)
+ !  call iaxa(FcampoVel,az,1)
+ !  call iaxa(FcampoVel,ax,2)
     call iaxa(Fpulso,at,1)
 
-    ! Definindo a geometria do output
-    call oaxa(Fsnaps,az,1)
-    call oaxa(Fsnaps,ax,2)
-    call oaxa(Fsnaps,at,3)
+ !  ! Definindo a geometria do output
+    call to_par (Fsnaps,"d1",az%d)
+    call to_par (Fsnaps,"d2",ax%d)
+    call to_par (Fsnaps,"d3",at%d*20)
+    call to_par (Fsnaps,"n1",az%n)
+    call to_par (Fsnaps,"n2",ax%n)
+    call to_par (Fsnaps,"n3",at%n/20-1)
+    call to_par (Fsnaps,"o1",0)
+    call to_par (Fsnaps,"o2",0)
+    call to_par (Fsnaps,"o3",0)
+!   call oaxa(Fsnaps,az,1)
+!   call oaxa(Fsnaps,ax,2)
+!   call oaxa(Fsnaps,at,3)
 
-    ! Alocando variáveis e lendo
+ !  ! Alocando variáveis e lendo
     allocate(campoVel(az%n,ax%n))
     campoVel=0.
     call rsf_read(FcampoVel,campoVel)
@@ -314,7 +339,7 @@ program wave
     pulso=0.
     call rsf_read(Fpulso,pulso)
 
-    allocate(snaps(az%n,ax%n,at%n))
+    allocate(snaps(az%n,ax%n,at%n/20-1))
 
     ! Retirando da variável de geometria as informações de geometria
     dt = at%d
@@ -335,7 +360,11 @@ program wave
     fontes(:,1) = [1,nx/2]
 
     ! Chamada da subrotina de propagação da onda
+    call cpu_time(start)
     call waveEstrap (ordem,nz,nx,nt,nb,dx,dz,dt,pulso,campoVel,fontes,snaps)
+    call cpu_time(finish)
+
+    write(0,*) "Tempo total: ",finish-start
 
     ! Escrevendo o arquivo de output
     call rsf_write(Fsnaps,snaps)
@@ -343,3 +372,4 @@ program wave
     ! Saino
     call exit(0)
 end program wave
+
