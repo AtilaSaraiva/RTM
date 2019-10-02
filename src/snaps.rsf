@@ -1,4 +1,4 @@
-3.1-git	exe	rtm/waveEstrBorda/src:	atila@atila-pc	Wed Sep 25 16:39:14 2019
+3.1-git	exe	rtm/rtm/src:	atila@atila-pc	Thu Sep 26 18:31:01 2019
 
 	o1=0
 	n2=200
@@ -9,6 +9,6 @@
 	data_format="native_float"
 	o3=0
 	esize=4
-	in="/var/tmp/rtm/waveEstrBorda/src/snaps.rsf@"
+	in="/var/tmp/rtm/rtm/src/snaps.rsf@"
 	n1=200
 	d1=0.01
