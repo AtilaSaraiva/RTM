@@ -1,10 +1,10 @@
-3.1-git	sfspike	rtm/waveEstrBorda/src:	atila@atila-pc	Wed Oct  2 12:04:40 2019
+3.1-git	sfspike	rtm/rtm/src:	atila@JurosComposto	Sat Oct  5 17:30:31 2019
 
 	o1=0
 	label1="Time"
 	data_format="native_float"
 	esize=4
-	in="/var/tmp/rtm/waveEstrBorda/src/spike.rsf@"
+	in="/var/tmp/rtm/rtm/src/spike.rsf@"
 	unit1="s"
 	d1=0.001
 	n1=1500

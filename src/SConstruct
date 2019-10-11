@@ -96,7 +96,7 @@ dataNames = []
 for i in range(len(sx)):
     gxbeg = sx[i] - dist_src
     Flow(['data%d' % i,'snaps%d' % i],['wavelet','campoVel'],"""
-./exe wav=${SOURCES[0]} vel=${SOURCES[1]} snaps=${TARGETS[1]}
+./wave.exe wav=${SOURCES[0]} vel=${SOURCES[1]} snaps=${TARGETS[1]}
  sx=%e sz=0.0000 gxbeg=%e gzbeg=0.000 jgx=%e nr=%d""" % (sx[i],gxbeg,d,nr))
     Flow('dataNoise%d' % i,'data%d' % i,"noise range=0.01")
     Plot('dataNoise%d' % i,
@@ -113,6 +113,12 @@ Result('snaps4',
      ''')
 
 Result('data',dataNames,'SideBySideAniso')
+
+Flow('shots',dataNames,"cat ${SOURCES[0:%d]}" % number_src, stdin=0)
+
+Flow('Img',['shots','campoVel','wavelet'],"""
+        ./rtm vel=${SOURCES[1]} wav=${SOURCES[2]} sxbeg=%e sz=0.0000 jsx=%e gzbeg=0.0000 jgx=%e nr=%d
+        """ % (dist_src,dist_src,d,nr))
 
    #Flow('figure',['snaps','campoVel'],"""
    #    sfpgreywfl bg=${SOURCES[1]} wflcmap=seismic title="Wavefield" barlabel="Velocity (m/s)" tmin=0.08 savefile=figure.gif""",stdout=-1)

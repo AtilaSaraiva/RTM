@@ -16,6 +16,177 @@ module difFinitas
     real,parameter:: numPi = 3.14159263
     contains
 
+        subroutine rtm (ordem,Nz,Nx,Nt,Nb,dx,dz,dt,receptores,shots,wavelet,campoVel,fontes,Img)
+            !=============================================!
+            ! Subrotina para fazer a propagação de uma
+            ! onda num campo de velocidade.
+            !=============================================!
+
+            ! Entrada e Saída
+            integer,intent(in) :: Nx,Nz,Nt,fontes(:,:),ordem,Nb,receptores(:,:,:)
+            real,intent(in)    :: campoVel(Nz,Nx),dx,dt,dz,wavelet(:),shots(:,:,:)
+            real,intent(out)   :: Img(Nz,Nx)
+
+            ! Variáveis Auxiliares
+            integer            :: i,j,k                                     ! Contadores
+            integer            :: f1,f2,lFontes                             ! Relacionados a posição e num de fontes
+            real:: snaps(Nz,Nx,Nt)
+
+            ! Extraindo a quantidade de fontes
+            lFontes = ubound(fontes,2)
+
+            Img = 0.0
+
+          ! i=1
+            do i = 1,lFontes
+                write(0,*) "Tiro ",i
+                call Forward(ordem,Nz,Nx,Nt,Nb,dx,dz,dt,wavelet,campoVel,fontes(:,i),snaps)
+                call Reverse(ordem,Nz,Nx,Nt,Nb,dx,dz,dt,campoVel,receptores(:,:,i),shots(:,:,i),snaps,Img)
+            end do
+
+        end subroutine rtm
+
+        subroutine Reverse (ordem,Nz,Nx,Nt,Nb,dx,dz,dt,campoVel,receptores,shot,snaps,Img)
+            !=============================================!
+            ! Subrotina para fazer a propagação de uma
+            ! onda num campo de velocidade.
+            !=============================================!
+
+            ! Entrada e Saída
+            integer,intent(in) :: Nx,Nz,Nt,receptores(:,:),ordem,Nb
+            real,intent(in)    :: campoVel(Nz,Nx),dx,dt,dz,shot(:,:)
+            real,intent(in)    :: snaps(Nz,Nx,Nt)
+            real,intent(inout)   :: Img(Nz,Nx)
+
+            ! Variáveis Auxiliares
+            real,allocatable   :: P_futuro(:,:),P_passado(:,:),P_atual(:,:) ! Campos de pressão
+            real,allocatable   :: lap(:,:)                                  ! Laplaciano
+            real,allocatable   :: campoVelExt(:,:)                          ! Campo de velocidade com borda de atenuacao
+            real               :: coefAtenuacao(Nb)                         ! Coefientes de atenuacao
+            character(len=30)  :: filename                                  ! Nome do Arquivo
+            real               :: prod=1.0                                  ! Aux de produto
+            integer            :: i,j,k                                     ! Contadores
+            integer            :: f1,f2,lreceptores                             ! Relacionados a posição e num de receptores
+            integer            :: Nxb,Nzb                                   ! Dimensões com a borda
+
+
+            ! Extraindo a quantidade de receptores
+            lreceptores = ubound(receptores,2)
+
+            ! Alocando arrays
+            Nxb = Nx + 2*Nb
+            Nzb = Nz + 2*Nb
+            allocate(campoVelExt(Nzb,Nxb))
+            allocate(P_futuro(Nzb,Nxb),P_passado(Nzb,Nxb),P_atual(Nzb,Nxb),lap(Nzb,Nxb))
+
+            ! Extendendo o campo de velocidade com a borda de atenuação
+            campoVelExt = extenCampoVel(Nx,Nz,Nb,campoVel)
+
+            ! Zerando os campos
+            P_passado = 0.0
+            P_atual = 0.0
+            P_futuro = 0.0
+
+            ! Calculando os coeficientes de Atenuação para serem multiplicados na Borda
+            coefAtenuacao = coeficientesDeAtenuacao(Nb)
+
+            j=1
+            do k=Nt-1,2,-1
+                if(mod(k,500) == 0) write(0,*) 'it',k
+
+                ! Atenuando os campos passado e presente
+                call atenuacao(nxb,nzb,nb,coefAtenuacao,P_passado)
+                call atenuacao(nxb,nzb,nb,coefAtenuacao,P_atual)
+
+                ! Calculando o laplaciano
+                lap = laplaciano(Nb,ordem,Nxb,Nzb,dx,dz,P_atual)
+
+                ! Resolvendo a equação da onda por diferenças finitas
+                P_passado = (2.0*P_atual - P_futuro  + (dt**2.)*(campoVelExt**2.)*lap)
+
+                ! Inserindo a wavelet nas posições de fonte
+                do i=1,lreceptores
+                    f1 = receptores(1,i)+Nb
+                    f2 = receptores(2,i)+Nb
+                    P_passado(f1,f2) = shot(k,i) + P_passado(f1,f2)
+                end do
+
+                Img = Img + P_passado(Nb+1:Nz+Nb,Nb+1:Nx+Nb) * snaps(:,:,k-1)
+
+                P_futuro = P_atual
+                P_atual   = P_passado
+            end do
+        end subroutine Reverse
+
+        subroutine Forward (ordem,Nz,Nx,Nt,Nb,dx,dz,dt,wavelet,campoVel,fontes,snaps)
+            !=============================================!
+            ! Subrotina para fazer a propagação de uma
+            ! onda num campo de velocidade.
+            !=============================================!
+
+            ! Entrada e Saída
+            integer,intent(in) :: Nx,Nz,Nt,fontes(:),ordem,Nb
+            real,intent(in)    :: campoVel(Nz,Nx),dx,dt,dz,wavelet(:)
+            real,intent(out):: snaps(Nz,Nx,Nt)
+
+            ! Variáveis Auxiliares
+            real,allocatable   :: P_futuro(:,:),P_passado(:,:),P_atual(:,:) ! Campos de pressão
+            real,allocatable   :: lap(:,:)                                  ! Laplaciano
+            real,allocatable   :: campoVelExt(:,:)                          ! Campo de velocidade com borda de atenuacao
+            real               :: coefAtenuacao(Nb)                         ! Coefientes de atenuacao
+            character(len=30)  :: filename                                  ! Nome do Arquivo
+            real               :: prod=1.0                                  ! Aux de produto
+            integer            :: i,k                                     ! Contadores
+            integer            :: f1,f2,lFontes                             ! Relacionados a posição e num de fontes
+            integer            :: Nxb,Nzb                                   ! Dimensões com a borda
+
+
+            ! Alocando arrays
+            Nxb = Nx + 2*Nb
+            Nzb = Nz + 2*Nb
+            allocate(campoVelExt(Nzb,Nxb))
+            allocate(P_futuro(Nzb,Nxb),P_passado(Nzb,Nxb),P_atual(Nzb,Nxb),lap(Nzb,Nxb))
+
+            ! Extendendo o campo de velocidade com a borda de atenuação
+            campoVelExt = extenCampoVel(Nx,Nz,Nb,campoVel)
+
+            ! Zerando os campos
+            P_passado = 0.0
+            P_atual = 0.0
+            P_futuro = 0.0
+
+            snaps(:,:,1) = P_passado(Nb+1:Nz+Nb,Nb+1:Nx+Nb)
+            snaps(:,:,2) = P_atual(Nb+1:Nz+Nb,Nb+1:Nx+Nb)
+
+            ! Calculando os coeficientes de Atenuação para serem multiplicados na Borda
+            coefAtenuacao = coeficientesDeAtenuacao(Nb)
+
+            do k=2,Nt-1
+                if(mod(k,500) == 0) write(0,*) 'it',k
+
+                ! Atenuando os campos passado e presente
+                call atenuacao(nxb,nzb,nb,coefAtenuacao,P_passado)
+                call atenuacao(nxb,nzb,nb,coefAtenuacao,P_atual)
+
+                ! Calculando o laplaciano
+                lap = laplaciano(Nb,ordem,Nxb,Nzb,dx,dz,P_atual)
+
+                ! Resolvendo a equação da onda por diferenças finitas
+                P_futuro = (2.0*P_atual - P_passado  + (dt**2.)*(campoVelExt**2.)*lap)
+
+                ! Inserindo a wavelet nas posições de fonte
+                f1=fontes(1)+Nb
+                f2=fontes(2)+Nb
+                P_futuro(f1,f2) = wavelet(k) + P_futuro(f1,f2)
+
+                ! Se a iteração for múltiplo de 20, escrever o campo no arquivo
+                snaps(:,:,k+1) = P_futuro(Nb+1:Nz+Nb,Nb+1:Nx+Nb)
+
+                P_passado = P_atual
+                P_atual = P_futuro
+            end do
+        end subroutine Forward
+
         subroutine waveEstrap (ordem,Nz,Nx,Nt,Nb,igzbeg,igxbeg,nr,jgx,dx,dz,dt,wavelet,campoVel,fontes,snaps,dat)
             !=============================================!
             ! Subrotina para fazer a propagação de uma
