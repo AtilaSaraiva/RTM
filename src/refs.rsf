@@ -4,7 +4,7 @@
 	data_format="native_float"
 	esize=4
 	in="/var/tmp/rtm/rtm/src/layers.rsf@"
-3.1-git	sfspline	rtm/rtm/src:	atila@atila-pc	Tue Oct  8 15:40:17 2019
+3.1-git	sfspline	rtm/rtm/src:	atila@atila-pc	Thu Dec  5 13:06:55 2019
 
 	o1=0
 	data_format="native_float"

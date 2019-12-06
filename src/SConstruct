@@ -120,6 +120,8 @@ Flow('Img',['shots','campoVel','wavelet'],"""
         ./rtm vel=${SOURCES[1]} wav=${SOURCES[2]} sxbeg=%e sz=0.0000 jsx=%e gzbeg=0.0000 jgx=%e nr=%d
         """ % (dist_src,dist_src,d,nr))
 
+Result('Img','grey gainpanel=a unit1=m unit2=m')
+
    #Flow('figure',['snaps','campoVel'],"""
    #    sfpgreywfl bg=${SOURCES[1]} wflcmap=seismic title="Wavefield" barlabel="Velocity (m/s)" tmin=0.08 savefile=figure.gif""",stdout=-1)
 

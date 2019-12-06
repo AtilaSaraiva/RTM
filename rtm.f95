@@ -35,7 +35,7 @@ program wave
     Fpulso = rsf_input("wav")
     Fimg = rsf_output("out")
 
-    ! Retirando do header as informações de geometria
+!   ! Retirando do header as informações de geometria
     !   Tiros
     call from_par(Fshots,'n1',ntTiro)
     call from_par(Fshots,'n2',nxTiro)
@@ -50,15 +50,15 @@ program wave
     call from_par(FcampoVel,"o2",o2)
 
 
-    call to_par (Fsnaps,"d1",az%d)
-    call to_par (Fsnaps,"d2",ax%d)
-    call to_par (Fsnaps,"d3",at%d*20)
-    call to_par (Fsnaps,"n1",az%n)
-    call to_par (Fsnaps,"n2",ax%n)
-    call to_par (Fsnaps,"n3",at%n/20-1)
-    call to_par (Fsnaps,"o1",0)
-    call to_par (Fsnaps,"o2",0)
-    call to_par (Fsnaps,"o3",0)
+!   call to_par (Fsnaps,"d1",az%d)
+!   call to_par (Fsnaps,"d2",ax%d)
+!   call to_par (Fsnaps,"d3",at%d*20)
+!   call to_par (Fsnaps,"n1",az%n)
+!   call to_par (Fsnaps,"n2",ax%n)
+!   call to_par (Fsnaps,"n3",at%n/20-1)
+!   call to_par (Fsnaps,"o1",0)
+!   call to_par (Fsnaps,"o2",0)
+!   call to_par (Fsnaps,"o3",0)
 
     !   Wavelet
     call iaxa(Fpulso,at,1)
