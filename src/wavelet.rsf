@@ -1,4 +1,4 @@
-3.1-git	sfspike	rtm/rtm/src:	atila@JurosComposto	Sat Oct  5 17:30:31 2019
+3.1-git	sfspike	rtm/rtm/src:	atila@JurosComposto	Sun Dec  8 11:40:23 2019
 
 	o1=0
 	label1="Time"
@@ -8,7 +8,7 @@
 	unit1="s"
 	d1=0.001
 	n1=1500
-3.1-git	sfricker1	rtm/rtm/src:	atila@atila-pc	Thu Dec  5 13:06:55 2019
+3.1-git	sfricker1	rtm/rtm/src:	atila@JurosComposto	Sun Dec  8 11:40:23 2019
 
 	data_format="native_float"
 	esize=4

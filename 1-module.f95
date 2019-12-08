@@ -373,7 +373,7 @@ module difFinitas
             ! Entrada e Saída
             integer,intent(in):: Nx,Nz,ordem,Nb
             real,intent(in):: dx,dz,P(Nz,Nx)
-            real:: laplaciano(Nx,Nz)
+            real:: laplaciano(Nz,Nx)
             ! Matrizes auxiliares
             real:: coef(ordem+1)
             real:: Pxx,Pzz
